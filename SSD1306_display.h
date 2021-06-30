@@ -8,7 +8,7 @@
 
 extern Adafruit_SSD1306 display;
 
-bool SSD1306_init(void);
+bool SSD1306_init(void);  // 液晶ディスプレイ初期化
 
 
 #endif

@@ -9,6 +9,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
+// 液晶ディスプレイ初期化
 bool SSD1306_init(void) {
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   return display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);

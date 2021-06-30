@@ -3,11 +3,12 @@
 #include "tetris.h"
 
 
-static unsigned long frame_count = 0;
-static const unsigned int fps = 1000;
+static unsigned long frame_count = 0; // 累積フレーム数
+static const unsigned int fps = 1000; // 1秒間のフレーム数
 
 
 void setup() {
+  // ハードウェア初期化
   Serial.begin(9600);
   input_init();
   if (!SSD1306_init()) {
@@ -19,9 +20,9 @@ void setup() {
 
 
 void loop() {
-  update_button_input();
+  update_button_input();  // ボタンの入力状態取得
   
-  tetris(frame_count, fps);
+  tetris(frame_count, fps); // テトリス1フレーム処理
   frame_count++;
 
   delay((unsigned long)(1000 / fps));
