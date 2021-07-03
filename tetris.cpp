@@ -1,5 +1,7 @@
 #include "tetris.h"
+#include "tetris_common.h"
 #include "mino_shape.h"
+#include "tetris_display.h"
 
 #include "input.h"
 #include "SSD1306_display.h"
@@ -8,48 +10,11 @@
 /*
  * 定数
  */
-// フィールドのサイズ
-#define FIELD_WIDTH         10
-#define FIELD_HEIGHT        20
-// 次のミノが待機しているエリア
-#define STANDBY_AREA_WIDTH  ((MINO_SIZE) + 2)
-#define STANDBY_AREA_HEIGHT 4
-// 次のミノの待機位置
-#define STANDBY_X           (((FIELD_WIDTH) - (MINO_SIZE)) / 2)
-#define STANDBY_Y           (-(MINO_SIZE) + 1)
-
-// マスのサイズ
-#define BLOCK_PX            5
-
-// "SCORE:"文字列のビットマップのサイズ
-#define SCORE_BMP_HEIGHT    30
-#define SCORE_BMP_WIDTH     6
-
-// スコア表示桁数
-#define SCORE_DIGITS_COUNT  6
-
 // テトリス動作
-#define MOVE_SPEED          0.1   /* 何秒に1回横方向に1ブロック動くか */
 #define DROP_SPEED          0.25  /* 何秒に1回下方向に1ブロック動くか */
+#define MOVE_SPEED          0.05  /* 連続入力したときに何秒に1回横方向に1ブロック動くか */
 #define DROP_DISTANCE       1     /* 1フレーム当たりの落下マス数 */
 #define FAST_DROP_DISTANCE  5     /* 落下ボタンを押したときの落下マス数 */
-
-
-/*
- * 型定義
- */
-// マスの状態
-typedef byte block_state;
-static const block_state BLOCK_NONE = 0;    // 何もないマス
-static const block_state BLOCK_WALL = 1;    // 壁
-static const block_state BLOCK_FIXED = 2;   // 動かせないミノ or ブロック
-static const block_state BLOCK_MOVABLE = 3; // 動かせるミノ
-
-// ミノの情報
-typedef struct {
-  int x, y; // 位置
-  block_state state;  // 状態
-} mino_info;
 
 
 /*
@@ -74,8 +39,6 @@ static void copy_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZ
 static void rotate_mino(                                                                        // ミノを回転
   byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE], int clockwise
 );
-static bool check_field(int x, int y);                                                          // フィールド内か判定
-static bool check_wall(int x, int y);                                                           // フィールドより外のマスに壁があるか判定
 static bool check_collision(                                                                    // ミノの衝突判定
   const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], int x, int y
 );
@@ -88,14 +51,7 @@ static void fix_mino(                                                           
   const byte (*mino)[MINO_SIZE], mino_info *mino_info
 );
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y);  // ブロックの消去処理
-static void draw_wall();                                                                        // 壁の描画
-static void draw_dynamic_display(void);                                                         // 動的に変化する要素の描画
-static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                     // ミノ待機エリアとフィールドの描画
-static void draw_mino(const mino_info *mino_info, const byte (*mino)[MINO_SIZE]);               // プレイヤーのミノの描画
-static void draw_next_mino(const mino_info *mino_info, int mino_id);                            // 次のミノの描画
-static void draw_block(int x, int y, block_state state);                                        // マスの描画
-static void field2display_coord(int field_x, int field_y, float *display_x, float *display_y);  // マス座標からディスプレイ座標に変換
-static void draw_score();                                                                       // スコア欄の描画
+
 
 
 // テトリスゲーム初期化
@@ -107,7 +63,7 @@ static void init_tetris(void) {
   next.state = BLOCK_NONE;
   
   draw_wall();
-  draw_score();
+  draw_score_bmp();
 }
 
 
@@ -154,6 +110,14 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
   }
   if (button_down(BUTTON_RIGHT)) {
     dx = 1;
+  }
+  if (button_continue_press() && (frame_count % (int)(fps * MOVE_SPEED) == 0)) {
+    if (button_press(BUTTON_LEFT)) {
+      dx = -1;
+    }
+    if (button_press(BUTTON_RIGHT)) {
+      dx = 1;
+    }
   }
   if (button_down(BUTTON_DOWN)) {
     dy = FAST_DROP_DISTANCE;  // 下ボタンが押されたら数マス下に落とす
@@ -213,7 +177,10 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
   }
 
   if (is_updated) {
-    draw_dynamic_display();
+    draw_field(field);
+    draw_mino(&player, player_mino);
+    draw_next_mino(&next, next_mino_id);
+    draw_score(score);
     display.display();
   }
 
@@ -262,29 +229,6 @@ static void rotate_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_S
       }
     }
   }
-}
-
-
-// フィールド内か判定
-static bool check_field(int x, int y) {
-  return (0 <= x) && (x < FIELD_WIDTH) && (0 <= y) && (y < FIELD_HEIGHT);
-}
-
-
-// フィールドより外のマスに壁があるか判定
-static bool check_wall(int x, int y) {
-  if (check_field(x, y)) {  // フィールド内には壁はない
-    return false;
-  }
-  if (y < 0) {              // ミノ待機エリアには
-    if (y == -1) {          // フィールドとの境界の一部を除き
-      if ((x < (FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2) || ((FIELD_WIDTH + STANDBY_AREA_WIDTH) / 2 <= x)) {
-        return true;
-      }
-    }
-    return false;           // 壁はない
-  }
-  return true;              // フィールドとミノ待機エリア以外は全て壁
 }
 
 
@@ -392,142 +336,4 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
   }
 
   return delete_row_count;
-}
-
-
-// 壁の描画
-static void draw_wall() {
-  for (int y = -STANDBY_AREA_HEIGHT; y <= FIELD_HEIGHT; y++) {
-    for (int x = -1; x <= FIELD_WIDTH; x++) {
-      if (check_wall(x, y)) {
-        draw_block(x, y, BLOCK_WALL);
-      }
-    }
-  }
-}
-
-
-// 動的に変化する要素の描画
-static void draw_dynamic_display(void) {
-  draw_field(field);  // 積まれているブロックと壁を描画
-  draw_mino(&player, player_mino);  // プレイヤーのミノを描画
-  draw_next_mino(&next, next_mino_id);  // 次のミノを描画
-  display.fillRect(0, SCORE_BMP_HEIGHT, DIGIT_BMP_WIDTH, DIGIT_BMP_HEIGHT * SCORE_DIGITS_COUNT, SSD1306_BLACK);
-  draw_number(0, SCORE_BMP_HEIGHT, score, SCORE_DIGITS_COUNT);  // スコアを描画
-}
-
-
-// ミノ待機エリアとフィールドの描画
-static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]) {
-  // ミノ待機エリアの描画
-  for (int y = -STANDBY_AREA_HEIGHT; y < 0; y++) {
-    for (int x = 0; x < STANDBY_AREA_WIDTH; x++) {
-      draw_block(x + (FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2, y, BLOCK_NONE);
-    }
-  }
-  // フィールドの描画
-  for (int y = 0; y < FIELD_HEIGHT; y++) {
-    for (int x = 0; x < FIELD_WIDTH; x++) {
-      draw_block(x, y, field[y][x]);
-    }
-  }
-}
-
-
-// プレイヤーのミノの描画
-static void draw_mino(const mino_info *mino_info, const byte (*mino)[MINO_SIZE]) {
-  for (int yy = 0; yy < MINO_SIZE; yy++) {
-    for (int xx = 0; xx < MINO_SIZE; xx++) {
-      if ((mino_info->state != BLOCK_NONE) && (mino[yy][xx] == 1)) {
-        draw_block(mino_info->x + xx, mino_info->y + yy, mino_info->state);
-      }
-    }
-  }
-}
-
-
-// 次のミノの描画
-static void draw_next_mino(const mino_info *mino_info, int mino_id) {
-  for (int yy = 0; yy < MINO_SIZE; yy++) {
-    for (int xx = 0; xx < MINO_SIZE; xx++) {
-      if ((mino_info->state != BLOCK_NONE) && (pgm_read_byte(&(mino_shapes[mino_id][yy][xx])) == 1)) {
-        draw_block(mino_info->x + xx, mino_info->y + yy, mino_info->state);
-      }
-    }
-  }
-}
-
-
-// マスの描画
-static void draw_block(int x, int y, block_state state) {
-  float display_x, display_y;
-  field2display_coord(x, y, &display_x, &display_y);
-
-  int left = display_x - (BLOCK_PX / 2.0);
-  int right = display_x + (BLOCK_PX / 2.0) - 1;
-  int top = display_y - (BLOCK_PX / 2.0);
-  int bottom = display_y + (BLOCK_PX / 2.0) - 1;
-  
-  switch (state) {
-  case BLOCK_WALL:  // マスが壁なら
-    display.drawLine(left, top, right, bottom, SSD1306_WHITE);  // 斜線を描画
-    break;
-  case BLOCK_FIXED: // マスがブロックなら
-    display.fillRect(left, top, right - left, bottom - top, SSD1306_WHITE); // 塗りつぶした矩形を描画
-    break;
-  case BLOCK_MOVABLE: // マスがミノなら
-    display.drawRect(left, top, right - left, bottom - top, SSD1306_WHITE); // 白抜きの矩形を描画
-    break;
-  case BLOCK_NONE:  // マスに何もないなら
-  default:
-    display.fillRect(left, top, right - left, bottom - top, SSD1306_BLACK); // 黒く塗りつぶす
-    break;
-  }
-}
-
-
-// マス座標からディスプレイ座標に変換
-static void field2display_coord(int field_x, int field_y, float *display_x, float *display_y) {
-  *display_x = (-field_y + 0.5 + FIELD_HEIGHT + 1) * BLOCK_PX + 2;
-  *display_y = (field_x + 0.5 + 1) * BLOCK_PX;
-}
-
-
-// "SCORE:"文字列のビットマップ
-static const byte score_bmp[SCORE_BMP_HEIGHT] PROGMEM = {
-  B01001000,
-  B10010100,
-  B10010100,
-  B01100000,
-  B00000000,
-  B01111000,
-  B10000100,
-  B10000100,
-  B01001000,
-  B00000000,
-  B01111000,
-  B10000100,
-  B10000100,
-  B01111000,
-  B00000000,
-  B11111100,
-  B00010100,
-  B00010100,
-  B11101100,
-  B00000000,
-  B11111100,
-  B10010100,
-  B10010100,
-  B10000100,
-  B00000000,
-  B00000000,
-  B01001000,
-  B00000000,
-  B00000000,
-  B00000000,
-};
-
-// スコア欄の描画
-static void draw_score() {
-  display.drawBitmap(0, 0, score_bmp, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
 }

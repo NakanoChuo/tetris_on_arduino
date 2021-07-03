@@ -17,6 +17,7 @@ unsigned int read_button_input(void);         // ボタンの押下状態を返�
 bool button_press(unsigned int button_code);  // ボタンを押しているかどうか
 bool button_down(unsigned int button_code);   // ボタンを押した瞬間かどうか
 bool button_up(unsigned int button_code);     // ボタンを離した瞬間かどうか
+bool button_continue_press(void);             // いずれかのボタンが連続入力されているかどうか
 
 
 #endif
