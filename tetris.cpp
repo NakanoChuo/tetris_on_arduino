@@ -5,6 +5,9 @@
 #include "SSD1306_display.h"
 
 
+/*
+ * 定数
+ */
 // フィールドのサイズ
 #define FIELD_WIDTH         10
 #define FIELD_HEIGHT        20
@@ -18,6 +21,23 @@
 // マスのサイズ
 #define BLOCK_PX            5
 
+// "SCORE:"文字列のビットマップのサイズ
+#define SCORE_BMP_HEIGHT    30
+#define SCORE_BMP_WIDTH     6
+
+// スコア表示桁数
+#define SCORE_DIGITS_COUNT  6
+
+// テトリス動作
+#define MOVE_SPEED          0.1   /* 何秒に1回横方向に1ブロック動くか */
+#define DROP_SPEED          0.25  /* 何秒に1回下方向に1ブロック動くか */
+#define DROP_DISTANCE       1     /* 1フレーム当たりの落下マス数 */
+#define FAST_DROP_DISTANCE  5     /* 落下ボタンを押したときの落下マス数 */
+
+
+/*
+ * 型定義
+ */
 // マスの状態
 typedef byte block_state;
 static const block_state BLOCK_NONE = 0;    // 何もないマス
@@ -32,6 +52,22 @@ typedef struct {
 } mino_info;
 
 
+/*
+ * テトリス情報用変数
+ */ 
+static bool is_gameover = true;                       // ゲームオーバーかどうか
+static unsigned int score;                            // スコア
+static block_state field[FIELD_HEIGHT][FIELD_WIDTH];  // テトリスのフィールド
+static mino_info player;                              // プレイヤーが動かすミノの状態
+static byte player_mino[MINO_SIZE][MINO_SIZE];        // ミノの形状
+static mino_info next;                                // 次のミノの状態
+static int next_mino_id;                              // 次のミノの種類
+
+
+/*
+ * 関数
+ */
+static void init_tetris(void);                                                                  // テトリスゲーム初期化
 static void init_field(block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                           // フィールドの初期化
 static void copy_next_mino(byte dst[MINO_SIZE][MINO_SIZE], int mino_id);                        // 番号mino_idで指定したミノの形状を配列にコピー
 static void copy_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE]);            // ミノの配列から配列にコピー
@@ -53,41 +89,39 @@ static void fix_mino(                                                           
 );
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y);  // ブロックの消去処理
 static void draw_wall();                                                                        // 壁の描画
+static void draw_dynamic_display(void);                                                         // 動的に変化する要素の描画
 static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                     // ミノ待機エリアとフィールドの描画
 static void draw_mino(const mino_info *mino_info, const byte (*mino)[MINO_SIZE]);               // プレイヤーのミノの描画
 static void draw_next_mino(const mino_info *mino_info, int mino_id);                            // 次のミノの描画
 static void draw_block(int x, int y, block_state state);                                        // マスの描画
 static void field2display_coord(int field_x, int field_y, float *display_x, float *display_y);  // マス座標からディスプレイ座標に変換
+static void draw_score();                                                                       // スコア欄の描画
 
 
-static const float MOVE_SPEED = 0.1;  // 何秒に1回横方向に1ブロック動くか
-static const float DROP_SPEED = 0.25; // 何秒に1回下方向に1ブロック動くか
-
-static const int DROP_DISTANCE = 1;       // 1フレーム当たりの落下マス数
-static const int FAST_DROP_DISTANCE = 5;  // 下ボタンを押したときの落下マス数
+// テトリスゲーム初期化
+static void init_tetris(void) {
+  is_gameover = false;
+  score = 0;
+  init_field(field);
+  player.state = BLOCK_NONE;
+  next.state = BLOCK_NONE;
+  
+  draw_wall();
+  draw_score();
+}
 
 
 // テトリスの1フレーム処理
 bool tetris(unsigned long frame_count, unsigned int fps) {
-  bool is_updated = false;  // 画面更新するかどうか
-  
-  static block_state field[FIELD_HEIGHT][FIELD_WIDTH];  // テトリスのフィールド
+  static bool is_first = true;  // 初回フレーム
+  bool is_updated = false;      // 画面更新するかどうか
 
-  static mino_info player = {0, 0, BLOCK_NONE};   // プレイヤーが動かすミノの状態
-  static byte player_mino[MINO_SIZE][MINO_SIZE];  // ミノの形状
-  
-  static mino_info next = {0, 0, BLOCK_NONE};     // 次のミノの状態
-  static int next_mino_id;                        // 次のミノの種類
-
-  static int is_gameover; // ゲームオーバーかどうか
-
-  if (frame_count == 0) { // ゲーム開始直後のリセット処理
-    is_gameover = false;
-    init_field(field);
-    draw_wall();
+  if (is_first) {
+    is_first = false;
+    init_tetris();
     is_updated = true;
   }
-
+  
   if (is_gameover) {
     return is_gameover;
   }
@@ -143,7 +177,16 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
           is_gameover = true; // ゲームオーバー
         } else {
           fix_mino(field, player_mino, &player);  // ミノをブロックに固定する
-          delete_blocks(field, player.y, player.y + MINO_SIZE); // ブロックが消せるかどうかチェック
+          
+          int delete_row_count = delete_blocks(field, player.y, player.y + MINO_SIZE);  // 消去した列数
+          if (delete_row_count > 0) {
+            // スコア計算
+            int d_score = 1;  // スコア増分
+            for (int i = 0; i < delete_row_count - 1; i++) {
+              d_score *= 10;  // 一度に消去した列数に応じて、より多いスコア
+            }
+            score += d_score;
+          }
         }
       }
       is_updated = true;
@@ -170,9 +213,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
   }
 
   if (is_updated) {
-    draw_field(field);  // 積まれているブロックと壁を描画
-    draw_mino(&player, player_mino);  // プレイヤーのミノを描画
-    draw_next_mino(&next, next_mino_id);  // 次のミノを描画
+    draw_dynamic_display();
     display.display();
   }
 
@@ -316,7 +357,8 @@ static void fix_mino(block_state field[FIELD_HEIGHT][FIELD_WIDTH], const byte (*
 
 // ブロックの消去処理
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y) {
-  bool delete_row[FIELD_HEIGHT];  // delete_row[i]はi列が消せるかどうか
+  bool delete_row[FIELD_HEIGHT];        // delete_row[i]はi列が消せるかどうか
+  int delete_row_count = FIELD_HEIGHT;  // 消す列数
 
   // 消去できる列を探していく
   for (int y = 0; y < FIELD_HEIGHT; y++) {
@@ -324,6 +366,8 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
     for (int x = 0; x < FIELD_WIDTH; x++) { // 1列中のマスについて
       if (field[y][x] == BLOCK_NONE) {      // 1つでも何もないマスがあったら
         delete_row[y] = false;              // その列は削除できない
+        delete_row_count--;
+        break;
       }
     }
   }
@@ -347,7 +391,7 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
     }
   }
 
-  return 0;
+  return delete_row_count;
 }
 
 
@@ -360,6 +404,16 @@ static void draw_wall() {
       }
     }
   }
+}
+
+
+// 動的に変化する要素の描画
+static void draw_dynamic_display(void) {
+  draw_field(field);  // 積まれているブロックと壁を描画
+  draw_mino(&player, player_mino);  // プレイヤーのミノを描画
+  draw_next_mino(&next, next_mino_id);  // 次のミノを描画
+  display.fillRect(0, SCORE_BMP_HEIGHT, DIGIT_BMP_WIDTH, DIGIT_BMP_HEIGHT * SCORE_DIGITS_COUNT, SSD1306_BLACK);
+  draw_number(0, SCORE_BMP_HEIGHT, score, SCORE_DIGITS_COUNT);  // スコアを描画
 }
 
 
@@ -434,6 +488,46 @@ static void draw_block(int x, int y, block_state state) {
 
 // マス座標からディスプレイ座標に変換
 static void field2display_coord(int field_x, int field_y, float *display_x, float *display_y) {
-  *display_x = (-field_y + 0.5 + FIELD_HEIGHT + 1) * BLOCK_PX;
+  *display_x = (-field_y + 0.5 + FIELD_HEIGHT + 1) * BLOCK_PX + 2;
   *display_y = (field_x + 0.5 + 1) * BLOCK_PX;
+}
+
+
+// "SCORE:"文字列のビットマップ
+static const byte score_bmp[SCORE_BMP_HEIGHT] PROGMEM = {
+  B01001000,
+  B10010100,
+  B10010100,
+  B01100000,
+  B00000000,
+  B01111000,
+  B10000100,
+  B10000100,
+  B01001000,
+  B00000000,
+  B01111000,
+  B10000100,
+  B10000100,
+  B01111000,
+  B00000000,
+  B11111100,
+  B00010100,
+  B00010100,
+  B11101100,
+  B00000000,
+  B11111100,
+  B10010100,
+  B10010100,
+  B10000100,
+  B00000000,
+  B00000000,
+  B01001000,
+  B00000000,
+  B00000000,
+  B00000000,
+};
+
+// スコア欄の描画
+static void draw_score() {
+  display.drawBitmap(0, 0, score_bmp, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
 }
