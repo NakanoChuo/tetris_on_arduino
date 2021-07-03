@@ -11,8 +11,8 @@
  * 定数
  */
 // テトリス動作
-#define DROP_SPEED          0.25  /* 何秒に1回下方向に1ブロック動くか */
-#define MOVE_SPEED          0.05  /* 連続入力したときに何秒に1回横方向に1ブロック動くか */
+#define DROP_PERIOD         0.25  /* 何秒に1回下方向に1ブロック動くか */
+#define MOVE_PERIOD         0.05  /* 連続入力したときに何秒に1回横方向に1ブロック動くか */
 #define DROP_DISTANCE       1     /* 1フレーム当たりの落下マス数 */
 #define FAST_DROP_DISTANCE  5     /* 落下ボタンを押したときの落下マス数 */
 
@@ -66,14 +66,11 @@ static void init_tetris(void) {
 
 // テトリスの1フレーム処理
 bool tetris(unsigned long frame_count, unsigned int fps) {
-  static bool is_first = true;  // 初回フレーム
   bool is_updated = false;      // 画面更新するかどうか
 
-  if (is_first) {
-    is_first = false;
+  if (frame_count == 0) {
     init_tetris();
     is_updated = true;
-    Serial.println("tetris1");
   }
   
   if (is_gameover) {
@@ -109,7 +106,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
   if (button_down(BUTTON_RIGHT)) {
     dx = 1;
   }
-  if (button_continue_press() && (frame_count % (int)(fps * MOVE_SPEED) == 0)) {
+  if (button_continue_press() && (frame_count % (int)(fps * MOVE_PERIOD) == 0)) {
     if (button_press(BUTTON_LEFT)) {
       dx = -1;
     }
@@ -119,7 +116,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
   }
   if (button_down(BUTTON_DOWN)) {
     dy = FAST_DROP_DISTANCE;  // 下ボタンが押されたら数マス下に落とす
-  } else if (frame_count % (int)(fps * DROP_SPEED) == 0) {
+  } else if (frame_count % (int)(fps * DROP_PERIOD) == 0) {
     dy = DROP_DISTANCE; // 数フレームに1回、少し下に落とす
     next_mino_dy = DROP_DISTANCE; // 次のミノも落とす
   }

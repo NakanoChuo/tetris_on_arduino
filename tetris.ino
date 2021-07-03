@@ -1,8 +1,10 @@
-#include "input.h"
-#include "SSD1306_display.h"
 #include "tetris_display.h"
 #include "title_screen.h"
 #include "tetris.h"
+#include "finish_screen.h"
+
+#include "input.h"
+#include "SSD1306_display.h"
 
 
 static unsigned long frame_count = 0; // 累積フレーム数
@@ -35,11 +37,12 @@ void setup() {
 
 void loop() {
   update_button_input();  // ボタンの入力状態取得
-  byte next_state= state;
+  byte next_state = state;
 
   switch (state) {
   case GAME_STATE_TITLE:
     if (title_screen(frame_count, fps)) {
+      clear_field();
       next_state = GAME_STATE_PLAY;
     }
     break;
@@ -49,16 +52,21 @@ void loop() {
     }
     break;
   case GAME_STATE_END:
+    if (finish_screen(frame_count, fps)) {
+      clear_field();
+      next_state = GAME_STATE_TITLE;
+    }
+    break;
   default:
     break;
   }
 
   if (state != next_state) {
-    clear_field();
+    frame_count = 0;
+  } else {
+    frame_count++;
   }
   state = next_state;
-
-  frame_count++;
 
   delay((unsigned long)(1000 / fps));
 }
