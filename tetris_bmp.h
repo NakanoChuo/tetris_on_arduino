@@ -4,10 +4,15 @@
 
 #include <Arduino.h>
 
-// "SCORE:"文字列のビットマップのサイズ
+// タイトルロゴのビットマップ
+#define TETRIS_LOGO_BMP_HEIGHT  47
+#define TETRIS_LOGO_BMP_WIDTH   64
+extern const byte TETRIS_LOGO_BMP[] PROGMEM;
+
+// "SCORE:"文字列のビットマップ
 #define SCORE_BMP_HEIGHT    30
 #define SCORE_BMP_WIDTH     6
-extern const byte score_bmp[SCORE_BMP_HEIGHT] PROGMEM;  // "SCORE:"文字列のビットマップ
+extern const byte SCORE_BMP[] PROGMEM;
 
 
 #endif

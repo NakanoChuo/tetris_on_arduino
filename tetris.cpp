@@ -61,9 +61,6 @@ static void init_tetris(void) {
   init_field(field);
   player.state = BLOCK_NONE;
   next.state = BLOCK_NONE;
-  
-  draw_wall();
-  draw_score_bmp();
 }
 
 
@@ -76,6 +73,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     is_first = false;
     init_tetris();
     is_updated = true;
+    Serial.println("tetris1");
   }
   
   if (is_gameover) {

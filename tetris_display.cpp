@@ -26,7 +26,7 @@ void draw_wall() {
 
 // スコア欄の描画
 void draw_score_bmp() {
-  display.drawBitmap(0, 0, score_bmp, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
+  display.drawBitmap(0, 0, SCORE_BMP, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
 }
 
 
@@ -51,6 +51,31 @@ void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]) {
       draw_block(x, y, field[y][x]);
     }
   }
+}
+
+
+// ミノ待機エリアとフィールドのクリア
+void clear_field(void) {
+  float left, right, top, bottom;
+  int l, r, t, b;
+
+  // ミノ待機エリアのクリア
+  field2display_coord((FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2, -STANDBY_AREA_HEIGHT, &right, &top);
+  field2display_coord((FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2 + STANDBY_AREA_WIDTH - 1, -1, &left, &bottom);
+  l = left - BLOCK_PX / 2.0;
+  r = right + BLOCK_PX / 2.0;
+  t = top - BLOCK_PX / 2.0;
+  b = bottom + BLOCK_PX / 2.0;
+  display.fillRect(l, t, r - l, b - t, SSD1306_BLACK);
+
+  // フィールドのクリア
+  field2display_coord(0, 0, &right, &top);
+  field2display_coord(FIELD_WIDTH - 1, FIELD_HEIGHT - 1, &left, &bottom);
+  l = left - BLOCK_PX / 2.0;
+  r = right + BLOCK_PX / 2.0;
+  t = top - BLOCK_PX / 2.0;
+  b = bottom + BLOCK_PX / 2.0;
+  display.fillRect(l, t, r - l, b - t, SSD1306_BLACK);
 }
 
 
@@ -110,4 +135,10 @@ void draw_block(int x, int y, block_state state) {
 void field2display_coord(int field_x, int field_y, float *display_x, float *display_y) {
   *display_x = (-field_y + 0.5 + FIELD_HEIGHT + 1) * BLOCK_PX + 2;
   *display_y = (field_x + 0.5 + 1) * BLOCK_PX;
+}
+
+
+// タイトル画面
+void draw_title(void) {
+  display.drawBitmap(35, 7, TETRIS_LOGO_BMP, TETRIS_LOGO_BMP_WIDTH, TETRIS_LOGO_BMP_HEIGHT, SSD1306_WHITE);
 }
