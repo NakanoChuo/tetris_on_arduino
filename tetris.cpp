@@ -6,16 +6,23 @@
 
 
 // フィールドのサイズ
-#define FIELD_WIDTH   12
-#define FIELD_HEIGHT  21
+#define FIELD_WIDTH         10
+#define FIELD_HEIGHT        20
+// 次のミノが待機しているエリア
+#define STANDBY_AREA_WIDTH  ((MINO_SIZE) + 2)
+#define STANDBY_AREA_HEIGHT 4
+// 次のミノの待機位置
+#define STANDBY_X           (((FIELD_WIDTH) - (MINO_SIZE)) / 2)
+#define STANDBY_Y           (-(MINO_SIZE) + 1)
 
-static const int BLOCK_PX = 5;  // マスのサイズ
+// マスのサイズ
+#define BLOCK_PX            5
 
 // マスの状態
 typedef byte block_state;
 static const block_state BLOCK_NONE = 0;    // 何もないマス
 static const block_state BLOCK_WALL = 1;    // 壁
-static const block_state BLOCK_FIXED = 2;   // ブロック
+static const block_state BLOCK_FIXED = 2;   // 動かせないミノ or ブロック
 static const block_state BLOCK_MOVABLE = 3; // 動かせるミノ
 
 // ミノの情報
@@ -31,6 +38,8 @@ static void copy_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZ
 static void rotate_mino(                                                                        // ミノを回転
   byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE], int clockwise
 );
+static bool check_field(int x, int y);                                                          // フィールド内か判定
+static bool check_wall(int x, int y);                                                           // フィールドより外のマスに壁があるか判定
 static bool check_collision(                                                                    // ミノの衝突判定
   const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], int x, int y
 );
@@ -43,7 +52,8 @@ static void fix_mino(                                                           
   const byte (*mino)[MINO_SIZE], mino_info *mino_info
 );
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y);  // ブロックの消去処理
-static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                     // フィールドの描画
+static void draw_wall();                                                                        // 壁の描画
+static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                     // ミノ待機エリアとフィールドの描画
 static void draw_mino(const mino_info *mino_info, const byte (*mino)[MINO_SIZE]);               // プレイヤーのミノの描画
 static void draw_next_mino(const mino_info *mino_info, int mino_id);                            // 次のミノの描画
 static void draw_block(int x, int y, block_state state);                                        // マスの描画
@@ -73,8 +83,8 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
 
   if (frame_count == 0) { // ゲーム開始直後のリセット処理
     is_gameover = false;
-    randomSeed(digitalRead(13));
     init_field(field);
+    draw_wall();
     is_updated = true;
   }
 
@@ -82,10 +92,10 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     return is_gameover;
   }
 
-  if (next.state != BLOCK_FIXED) {  // 
+  if (next.state == BLOCK_NONE) { // 次のミノがなかったら 
     // 次のミノの生成
-    next.x = (FIELD_WIDTH - MINO_SIZE) / 2;
-    next.y = (frame_count == 0) ? 0 : -2;
+    next.x = STANDBY_X;
+    next.y = (frame_count == 0) ? STANDBY_Y : STANDBY_Y - MINO_SIZE;
     next.state = BLOCK_FIXED;
     next_mino_id = random(0, MINO_TYPE_COUNT);
     is_updated = true;
@@ -97,11 +107,12 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     player.y = next.y;
     player.state = BLOCK_MOVABLE;
     copy_next_mino(player_mino, next_mino_id);
-    next.state = BLOCK_NONE;  // 次のミノの状態を初期状態に
+    next.state = BLOCK_NONE;  // 次のミノを消す
     is_updated = true;
   }
 
-  int dx = 0, dy = 0;
+  int dx = 0, dy = 0;   // プレイヤーのミノの移動量
+  int next_mino_dy = 0; // 次のミノの移動量
 
   // ミノの移動
   if (button_down(BUTTON_LEFT)) {
@@ -114,26 +125,38 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     dy = FAST_DROP_DISTANCE;  // 下ボタンが押されたら数マス下に落とす
   } else if (frame_count % (int)(fps * DROP_SPEED) == 0) {
     dy = DROP_DISTANCE; // 数フレームに1回、少し下に落とす
-    next.y += (next.y < 1); // 次のミノも落とす
+    next_mino_dy = DROP_DISTANCE; // 次のミノも落とす
   }
 
-  if (dx != 0) {
-    dx = check_move(field, player_mino, player.x, player.y, dx, 1); // 横方向に動けるかチェック、動ける分だけ動く
-    player.x += dx;
-    is_updated = true;
-  }
-
-  if (dy != 0) {
-    dy = check_move(field, player_mino, player.x, player.y, dy, 0); // 下方向に動けるかチェック、動ける分だけ動く
-    player.y += dy;
-    if (dy == 0) {  // チェックした結果、動けなかったら
-      if (player.y <= 2) {  // さらに、上までブロックが積まれていたら
-        is_gameover = true; // ゲームオーバー
-      }
-      fix_mino(field, player_mino, &player);  // ミノをブロックに固定する
-      delete_blocks(field, player.y, player.y + MINO_SIZE); // ブロックが消せるかどうかチェック
+  if (player.state == BLOCK_MOVABLE) {
+    if (dx != 0) {
+      dx = check_move(field, player_mino, player.x, player.y, dx, 1); // 横方向に動けるかチェック、動ける分だけ動く
+      player.x += dx;
+      is_updated = true;
     }
-    is_updated = true;
+  
+    if (dy != 0) {
+      dy = check_move(field, player_mino, player.x, player.y, dy, 0); // 下方向に動けるかチェック、動ける分だけ動く
+      player.y += dy;
+      if (dy == 0) {  // チェックした結果、動けなかったら
+        if (player.y <= STANDBY_Y) {  // さらに、上までブロックが積まれていたら
+          is_gameover = true; // ゲームオーバー
+        } else {
+          fix_mino(field, player_mino, &player);  // ミノをブロックに固定する
+          delete_blocks(field, player.y, player.y + MINO_SIZE); // ブロックが消せるかどうかチェック
+        }
+      }
+      is_updated = true;
+    }
+  }
+
+  if ((next.state != BLOCK_NONE) && !is_gameover) {
+    if (next_mino_dy != 0) {
+      if (next.y < STANDBY_Y) {
+        next.y += next_mino_dy;
+        is_updated = true;
+      }
+    }
   }
   
   // ミノの回転
@@ -161,19 +184,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
 static void init_field(block_state field[FIELD_HEIGHT][FIELD_WIDTH]) {
   for (int y = 0; y < FIELD_HEIGHT; y++) {
     for (int x = 0; x < FIELD_WIDTH; x++) {
-      if (y == FIELD_HEIGHT - 1) {
-        field[y][x] = BLOCK_WALL;
-      } else if (y == 3) {
-        if (x < 3 || FIELD_WIDTH - 3 <= x) {
-          field[y][x] = BLOCK_WALL;
-        } else {
-          field[y][x] = BLOCK_NONE;
-        }
-      } else {
-        if (x < 1 || FIELD_WIDTH - 1 <= x) {
-          field[y][x] = BLOCK_WALL;
-        }
-      }
+      field[y][x] = BLOCK_NONE;
     }
   }
 }
@@ -213,12 +224,43 @@ static void rotate_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_S
 }
 
 
+// フィールド内か判定
+static bool check_field(int x, int y) {
+  return (0 <= x) && (x < FIELD_WIDTH) && (0 <= y) && (y < FIELD_HEIGHT);
+}
+
+
+// フィールドより外のマスに壁があるか判定
+static bool check_wall(int x, int y) {
+  if (check_field(x, y)) {  // フィールド内には壁はない
+    return false;
+  }
+  if (y < 0) {              // ミノ待機エリアには
+    if (y == -1) {          // フィールドとの境界の一部を除き
+      if ((x < (FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2) || ((FIELD_WIDTH + STANDBY_AREA_WIDTH) / 2 <= x)) {
+        return true;
+      }
+    }
+    return false;           // 壁はない
+  }
+  return true;              // フィールドとミノ待機エリア以外は全て壁
+}
+
+
 // ミノがブロックや壁と衝突しているか（重なっているか）チェック
 static bool check_collision(const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], int x, int y) {
   for (int yy = 0; yy < MINO_SIZE; yy++) {
     for (int xx = 0; xx < MINO_SIZE; xx++) {
       if (mino[yy][xx] == 1) {
-        block_state block = field[y + yy][x + xx];
+        block_state block;
+        if (check_field(x + xx, y + yy)) {
+          block = field[y + yy][x + xx];
+        } else if (check_wall(x + xx, y + yy)) {
+          block = BLOCK_WALL;
+        } else {
+          block = BLOCK_NONE;
+        }
+        
         if (block != BLOCK_NONE) {  // ミノを配置した先に何かあったら
           return false;             // 衝突している
         }
@@ -262,7 +304,7 @@ static void fix_mino(block_state field[FIELD_HEIGHT][FIELD_WIDTH], const byte (*
   for (int yy = 0; yy < MINO_SIZE; yy++) {
     for (int xx = 0; xx < MINO_SIZE; xx++) {
       if (mino[yy][xx] == 1) {
-        if ((0 <= y + yy) && (y + yy < FIELD_HEIGHT) && (0 <= x + xx) && (x + xx < FIELD_WIDTH)) {
+        if (check_field(x + xx, y + yy)) {
           field[y + yy][x + xx] = BLOCK_FIXED;  // ミノがあるマスを固定ブロックに変更
         }
       }
@@ -276,17 +318,12 @@ static void fix_mino(block_state field[FIELD_HEIGHT][FIELD_WIDTH], const byte (*
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y) {
   bool delete_row[FIELD_HEIGHT];  // delete_row[i]はi列が消せるかどうか
 
-  // 初期化
-  for (int y = 0; y < FIELD_HEIGHT; y++) {
-    delete_row[y] = false;
-  }
-
   // 消去できる列を探していく
-  for (int y = max(4, low_y); y < min(FIELD_HEIGHT - 1, high_y); y++) {
-    delete_row[y] = true; // 
-    for (int x = 1; x < FIELD_WIDTH - 1; x++) { // 1列中のマスについて
-      if (field[y][x] == BLOCK_NONE) {  // 1つでも何もないマスがあったら
-        delete_row[y] = false;  // その列は削除できない
+  for (int y = 0; y < FIELD_HEIGHT; y++) {
+    delete_row[y] = true;
+    for (int x = 0; x < FIELD_WIDTH; x++) { // 1列中のマスについて
+      if (field[y][x] == BLOCK_NONE) {      // 1つでも何もないマスがあったら
+        delete_row[y] = false;              // その列は削除できない
       }
     }
   }
@@ -294,14 +331,14 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
   // 消去しない列を下に詰めていき、消去する列を上書きする
   int dst_y = FIELD_HEIGHT - 1; // 消去する列番号（上書きされる列）
   int src_y = FIELD_HEIGHT - 1; // 消去しない列番号（上書きする列）
-  for (; dst_y >= 4; dst_y--, src_y--) {
-    while ((delete_row[src_y]) && (src_y >= 4)) {
+  for (; dst_y >= 0; dst_y--, src_y--) {
+    while ((delete_row[src_y]) && (src_y >= 0)) {
       src_y--;
     }
     if (dst_y != src_y) { // 上書きする列と上書きされる列が違うなら上書き処理を行う（同じなら上書き処理をする必要はない）
       // 上書き処理
-      for (int x = 1; x < FIELD_WIDTH - 1; x++) {
-        if (src_y >= 4) {
+      for (int x = 0; x < FIELD_WIDTH; x++) {
+        if (src_y >= 0) {
           field[dst_y][x] = field[src_y][x];
         } else {
           field[dst_y][x] = BLOCK_NONE;
@@ -314,8 +351,27 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
 }
 
 
-// フィールドの描画
+// 壁の描画
+static void draw_wall() {
+  for (int y = -STANDBY_AREA_HEIGHT; y <= FIELD_HEIGHT; y++) {
+    for (int x = -1; x <= FIELD_WIDTH; x++) {
+      if (check_wall(x, y)) {
+        draw_block(x, y, BLOCK_WALL);
+      }
+    }
+  }
+}
+
+
+// ミノ待機エリアとフィールドの描画
 static void draw_field(const block_state field[FIELD_HEIGHT][FIELD_WIDTH]) {
+  // ミノ待機エリアの描画
+  for (int y = -STANDBY_AREA_HEIGHT; y < 0; y++) {
+    for (int x = 0; x < STANDBY_AREA_WIDTH; x++) {
+      draw_block(x + (FIELD_WIDTH - STANDBY_AREA_WIDTH) / 2, y, BLOCK_NONE);
+    }
+  }
+  // フィールドの描画
   for (int y = 0; y < FIELD_HEIGHT; y++) {
     for (int x = 0; x < FIELD_WIDTH; x++) {
       draw_block(x, y, field[y][x]);
@@ -378,6 +434,6 @@ static void draw_block(int x, int y, block_state state) {
 
 // マス座標からディスプレイ座標に変換
 static void field2display_coord(int field_x, int field_y, float *display_x, float *display_y) {
-  *display_x = (-field_y + 0.5) * BLOCK_PX + BLOCK_PX * (FIELD_HEIGHT + 1);
-  *display_y = (field_x + 0.5) * BLOCK_PX;
+  *display_x = (-field_y + 0.5 + FIELD_HEIGHT + 1) * BLOCK_PX;
+  *display_y = (field_x + 0.5 + 1) * BLOCK_PX;
 }

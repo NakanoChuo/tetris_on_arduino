@@ -8,6 +8,8 @@ static const unsigned int fps = 1000; // 1秒間のフレーム数
 
 
 void setup() {
+  randomSeed(digitalRead(13));
+  
   // ハードウェア初期化
   Serial.begin(9600);
   input_init();
