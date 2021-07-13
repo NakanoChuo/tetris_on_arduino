@@ -5,10 +5,11 @@
 
 
 // ボタンコード
-#define BUTTON_UP      B0001
-#define BUTTON_DOWN    B0010
-#define BUTTON_LEFT    B0100
-#define BUTTON_RIGHT   B1000
+#define BUTTON_UP     B00000001
+#define BUTTON_DOWN   B00000010
+#define BUTTON_LEFT   B00000100
+#define BUTTON_RIGHT  B00001000
+#define BUTTON_CENTER B00010000
 
 
 void input_init(void);                        // 入力ポート初期化

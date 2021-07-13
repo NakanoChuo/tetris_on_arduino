@@ -13,7 +13,7 @@ bool title_screen(unsigned long frame_count, unsigned int fps) {
     draw_title();
     display.display();
   }
-  if (button_press(BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT)) {
+  if (button_press(BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_CENTER)) {
     return true;
   }
   return false;

@@ -7,17 +7,19 @@
 #define DOWN_BUTTON_PIN   3
 #define LEFT_BUTTON_PIN   4
 #define RIGHT_BUTTON_PIN  5
+#define CENTER_BUTTON_PIN 6
+
 
 // このフレーム数以上ボタンを押しているなら連続入力しているとする
 #define CONTINUE_PRESS_FRAME_COUNT  250
 
 
-static unsigned int input;              // ボタンの押下状態（ボタンが押されているなら対応するビットが立つ）
-static unsigned int prev_input;         // 1つ前の押下状態
-static unsigned int press_change_input; // 押下状態が変化したときの押下状態
-static unsigned int press_frame_count;  // ボタン押しているフレーム数
-static unsigned int rising_edge_input;  // ボタンが立ち上がりエッジになっているなら対応するビットが立つ
-static unsigned int falling_edge_input; // 立ち下がりエッジ
+static unsigned long input;               // ボタンの押下状態（ボタンが押されているなら対応するビットが立つ）
+static unsigned long prev_input;          // 1つ前の押下状態
+static unsigned long press_change_input;  // 押下状態が変化したときの押下状態
+static unsigned long press_frame_count;   // ボタン押しているフレーム数
+static unsigned long rising_edge_input;   // ボタンが立ち上がりエッジになっているなら対応するビットが立つ
+static unsigned long falling_edge_input;  // 立ち下がりエッジ
 
 
 // 入力ポート初期化
@@ -26,6 +28,7 @@ void input_init(void) {
   pinMode(DOWN_BUTTON_PIN, INPUT_PULLUP);
   pinMode(LEFT_BUTTON_PIN, INPUT_PULLUP);
   pinMode(RIGHT_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(CENTER_BUTTON_PIN, INPUT_PULLUP);
 }
 
 
@@ -52,7 +55,8 @@ unsigned int read_button_input(void) {
     ((digitalRead(UP_BUTTON_PIN) == LOW) * BUTTON_UP)
     | ((digitalRead(DOWN_BUTTON_PIN) == LOW) * BUTTON_DOWN)
     | ((digitalRead(LEFT_BUTTON_PIN) == LOW) * BUTTON_LEFT)
-    | ((digitalRead(RIGHT_BUTTON_PIN) == LOW) * BUTTON_RIGHT);
+    | ((digitalRead(RIGHT_BUTTON_PIN) == LOW) * BUTTON_RIGHT)
+    | ((digitalRead(CENTER_BUTTON_PIN) == LOW) * BUTTON_CENTER);
 }
 
 
