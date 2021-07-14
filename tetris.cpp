@@ -39,6 +39,7 @@ static void copy_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZ
 static void rotate_mino(                                                                        // ミノを回転
   byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE], int clockwise
 );
+static block_state get_block(const block_state(*field)[FIELD_WIDTH], int x, int y);             // 指定した座標のブロックの状態を取得
 static bool check_collision(                                                                    // ミノの衝突判定
   const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], int x, int y
 );
@@ -227,21 +228,24 @@ static void rotate_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_S
 }
 
 
+// 指定した座標のブロックの状態を取得
+static block_state get_block(const block_state(*field)[FIELD_WIDTH], int x, int y) {
+  if (check_field(x, y)) {
+    return field[y][x];
+  } else if (check_wall(x, y)) {
+    return BLOCK_WALL;
+  } else {
+    return BLOCK_NONE;
+  }
+}
+
+
 // ミノがブロックや壁と衝突しているか（重なっているか）チェック
 static bool check_collision(const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], int x, int y) {
   for (int yy = 0; yy < MINO_SIZE; yy++) {
     for (int xx = 0; xx < MINO_SIZE; xx++) {
       if (mino[yy][xx] == 1) {
-        block_state block;
-        if (check_field(x + xx, y + yy)) {
-          block = field[y + yy][x + xx];
-        } else if (check_wall(x + xx, y + yy)) {
-          block = BLOCK_WALL;
-        } else {
-          block = BLOCK_NONE;
-        }
-        
-        if (block != BLOCK_NONE) {  // ミノを配置した先に何かあったら
+        if (get_block(field, x + xx, y + yy) != BLOCK_NONE) {  // ミノを配置した先に何かあったら
           return false;             // 衝突している
         }
       }
