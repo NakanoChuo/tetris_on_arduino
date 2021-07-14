@@ -79,10 +79,10 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     return is_gameover;
   }
 
-  if (next.state == BLOCK_NONE) { // 次のミノがなかったら 
+  if ((next.state == BLOCK_NONE) && check_mino_in_field(player_mino, &player)) {  // 次のミノがない、かつ、プレイヤーのミノがミノ待機エリアから出ていたら
     // 次のミノの生成
     next.x = STANDBY_X;
-    next.y = (frame_count == 0) ? STANDBY_Y : STANDBY_Y - MINO_SIZE;
+    next.y = (frame_count == 0) ? STANDBY_Y : STANDBY_Y - MINO_SIZE + 1;
     next.state = BLOCK_FIXED;
     next_mino_id = random(0, MINO_TYPE_COUNT);
     is_updated = true;
