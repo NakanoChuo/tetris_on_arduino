@@ -47,6 +47,7 @@ static int check_move(                                                          
   const block_state (*field)[FIELD_WIDTH], const byte (*mino)[MINO_SIZE], 
   int x, int y, int move_distance, int vertical_or_horizontal
 );
+static bool check_mino_in_field(const byte (*mino)[MINO_SIZE], const mino_info *mino_info);     // ミノがフィールド内か判定
 static void fix_mino(                                                                           // ミノをブロックに固定する
   block_state field[FIELD_HEIGHT][FIELD_WIDTH], 
   const byte (*mino)[MINO_SIZE], mino_info *mino_info
@@ -133,10 +134,8 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
       dy = check_move(field, player_mino, player.x, player.y, dy, 0); // 下方向に動けるかチェック、動ける分だけ動く
       player.y += dy;
       if (dy == 0) {  // チェックした結果、動けなかったら
-        if (player.y <= STANDBY_Y) {  // さらに、上までブロックが積まれていたら
-          is_gameover = true; // ゲームオーバー
-        } else {
-          fix_mino(field, player_mino, &player);  // ミノをブロックに固定する
+        if (check_mino_in_field(player_mino, &player)) {              // ミノがフィールド内にいるなら
+          fix_mino(field, player_mino, &player);                      // ミノをブロックに固定する
           
           int delete_row_count = delete_blocks(field, player.y, player.y + MINO_SIZE);  // 消去した列数
           if (delete_row_count > 0) {
@@ -147,6 +146,8 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
             }
             score += d_score;
           }
+        } else {                                                      // ミノがフィールド外なら
+          is_gameover = true; // ゲームオーバー
         }
       }
       is_updated = true;
@@ -280,6 +281,25 @@ static int check_move(const block_state (*field)[FIELD_WIDTH], const byte (*mino
 }
 
 
+// ミノがフィールド内か判定
+static bool check_mino_in_field(const byte (*mino)[MINO_SIZE], const mino_info *mino_info) {
+  int x = mino_info->x;
+  int y = mino_info->y;
+  
+  for (int yy = 0; yy < MINO_SIZE; yy++) {
+    for (int xx = 0; xx < MINO_SIZE; xx++) {
+      if (mino[yy][xx] == 1) {
+        if (!check_field(x + xx, y + yy)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+
 // ミノをブロックに固定する
 static void fix_mino(block_state field[FIELD_HEIGHT][FIELD_WIDTH], const byte (*mino)[MINO_SIZE], mino_info *mino_info) {
   int x = mino_info->x;
@@ -288,9 +308,7 @@ static void fix_mino(block_state field[FIELD_HEIGHT][FIELD_WIDTH], const byte (*
   for (int yy = 0; yy < MINO_SIZE; yy++) {
     for (int xx = 0; xx < MINO_SIZE; xx++) {
       if (mino[yy][xx] == 1) {
-        if (check_field(x + xx, y + yy)) {
-          field[y + yy][x + xx] = BLOCK_FIXED;  // ミノがあるマスを固定ブロックに変更
-        }
+        field[y + yy][x + xx] = BLOCK_FIXED;  // ミノがあるマスを固定ブロックに変更
       }
     }
   }
