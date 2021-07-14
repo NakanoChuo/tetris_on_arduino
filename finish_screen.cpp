@@ -6,7 +6,7 @@
 
 
 #define ANIMATION_PERIOD    0.001 /* 何秒に1回アニメーションさせるか */
-#define DELETE_BLOCK_SPEED  2     /* 1フレームに消すブロック数 */
+#define DELETE_BLOCK_SPEED  3     /* 1フレームに消すブロック数 */
 
 // 終了画面の1フレーム処理
 bool finish_screen(unsigned long frame_count, unsigned int fps) {
