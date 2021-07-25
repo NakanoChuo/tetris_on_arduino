@@ -8,6 +8,8 @@
 
 #include "input.h"
 #include "SSD1306_display.h"
+#include "music_player.h"
+#include "music_data.h"
 
 
 static unsigned long frame_count = 0; // 累積フレーム数
@@ -25,6 +27,9 @@ static unsigned int ranking_scores[RANKING_COUNT];  // ランキング
 #define GAME_STATE_RANKING  2
 #define GAME_STATE_END      3
 static byte state = GAME_STATE_TITLE;
+
+// 音楽再生用
+MusicPlayer music;
 
 
 void setup() {
@@ -54,11 +59,17 @@ void setup() {
   for (int i = 0; i < RANKING_COUNT; i++) {
     EEPROM.get(RANKING_ADDRESS(i), ranking_scores[i]);
   }
+
+  // 音楽設定
+   music = MusicPlayer();
+   music.set_notes(bpm, notes);
+   music.play(true);
 }
 
 
 void loop() {
   update_button_input();  // ボタンの入力状態取得  
+  music.update_sound();   // 音を鳴らす
 
   static unsigned int score;
   byte next_state = state;
