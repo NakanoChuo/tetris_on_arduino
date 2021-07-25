@@ -68,7 +68,7 @@ static void init_tetris(void) {
 
 
 // テトリスの1フレーム処理
-bool tetris(unsigned long frame_count, unsigned int fps) {
+bool tetris(unsigned long frame_count, unsigned int fps, unsigned int& ret_score) {
   bool is_updated = false;      // 画面更新するかどうか
 
   if (frame_count == 0) {
@@ -142,6 +142,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
           score += calculate_score(delete_row_count);
         } else {                                                      // ミノがフィールド外なら
           is_gameover = true; // ゲームオーバー
+          ret_score = score;  // スコアを保存
         }
       }
       is_updated = true;

@@ -8,9 +8,6 @@
 // マスのサイズ
 #define BLOCK_PX            5
 
-// スコア表示桁数
-#define SCORE_DIGITS_COUNT  6
-
 
 // 壁の描画
 void draw_wall() {
@@ -26,14 +23,16 @@ void draw_wall() {
 
 // スコア欄の描画
 void draw_score_bmp() {
-  display.drawBitmap(0, 0, SCORE_BMP, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
+  int x = 0, y = 1;
+  display.drawBitmap(x, y, SCORE_BMP, SCORE_BMP_WIDTH, SCORE_BMP_HEIGHT, SSD1306_WHITE);
 }
 
 
 // スコアの描画
 void draw_score(unsigned int score) {
-  display.fillRect(0, SCORE_BMP_HEIGHT, DIGIT_BMP_WIDTH, DIGIT_BMP_HEIGHT * SCORE_DIGITS_COUNT, SSD1306_BLACK);
-  draw_number(0, SCORE_BMP_HEIGHT, score, SCORE_DIGITS_COUNT);
+  int x = 0, y = 3;
+  display.fillRect(x, y + SCORE_BMP_HEIGHT, DIGIT_BMP_WIDTH, DIGIT_BMP_HEIGHT * SCORE_DIGITS_COUNT, SSD1306_BLACK);
+  draw_number(x, y + SCORE_BMP_HEIGHT, score, SCORE_DIGITS_COUNT);
 }
 
 

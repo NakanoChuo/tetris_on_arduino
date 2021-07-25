@@ -14,5 +14,10 @@ extern const byte TETRIS_LOGO_BMP[] PROGMEM;
 #define SCORE_BMP_WIDTH     6
 extern const byte SCORE_BMP[] PROGMEM;
 
+// "RANKING"文字列のビットマップ
+#define RANKING_BMP_HEIGHT  33
+#define RANKING_BMP_WIDTH   6
+extern const byte RANKING_BMP[RANKING_BMP_HEIGHT] PROGMEM;
+
 
 #endif

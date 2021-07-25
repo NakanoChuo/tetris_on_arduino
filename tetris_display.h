@@ -4,6 +4,8 @@
 
 #include "tetris_common.h"
 
+#define SCORE_DIGITS_COUNT  5 // スコア表示桁数
+
 void draw_wall(void);                                                                   // 壁の描画
 void draw_score_bmp(void);                                                              // スコア欄の描画
 void draw_score(unsigned int score);                                                    // スコアの描画

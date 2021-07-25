@@ -1,6 +1,9 @@
+#include <EEPROM.h>
+
 #include "tetris_display.h"
 #include "title_screen.h"
 #include "tetris.h"
+#include "ranking_screen.h"
 #include "finish_screen.h"
 
 #include "input.h"
@@ -10,9 +13,16 @@
 static unsigned long frame_count = 0; // 累積フレーム数
 static const unsigned int fps = 1000; // 1秒間のフレーム数
 
-#define GAME_STATE_TITLE  0
-#define GAME_STATE_PLAY   1
-#define GAME_STATE_END    2
+#define RANKING_COUNT 3   /* 保存するランキングの順位数 */
+static unsigned int ranking_scores[RANKING_COUNT];  // ランキング
+
+#define RANKING_ADDRESS(rank) ((rank) * sizeof(*ranking_scores))              /* ランキングを保存するアドレス */
+
+// ゲーム状態
+#define GAME_STATE_TITLE    0
+#define GAME_STATE_PLAY     1
+#define GAME_STATE_RANKING  2
+#define GAME_STATE_END      3
 static byte state = GAME_STATE_TITLE;
 
 
@@ -32,11 +42,26 @@ void setup() {
   draw_wall();
   draw_score_bmp();
   draw_score(0);
+
+  // ランキングリセット
+  update_button_input();
+  if (button_down(BUTTON_CENTER)) { // 起動時に中央ボタンが押されていたらランキングリセット
+    for (int i = 0; i < RANKING_COUNT; i++) {
+      EEPROM.put(RANKING_ADDRESS(i), (unsigned int)0);
+    }
+  }
+  
+  // ランキング読み込み
+  for (int i = 0; i < RANKING_COUNT; i++) {
+    EEPROM.get(RANKING_ADDRESS(i), ranking_scores[i]);
+  }
 }
 
 
 void loop() {
-  update_button_input();  // ボタンの入力状態取得
+  update_button_input();  // ボタンの入力状態取得  
+
+  static unsigned int score;
   byte next_state = state;
 
   // 各ゲーム状態の終了時処理
@@ -48,12 +73,22 @@ void loop() {
     }
     break;
   case GAME_STATE_PLAY:
-    if (tetris(frame_count, fps)) {
+    if (tetris(frame_count, fps, score)) {
       next_state = GAME_STATE_END;
     }
     break;
   case GAME_STATE_END:
     if (finish_screen(frame_count, fps)) {
+      clear_field();
+      next_state = GAME_STATE_RANKING;
+    }
+    break;
+  case GAME_STATE_RANKING:
+    if (ranking_screen(frame_count, fps, score, ranking_scores, RANKING_COUNT)) {
+      // ランキング保存
+      for (int i = 0; i < RANKING_COUNT; i++) {
+        EEPROM.put(RANKING_ADDRESS(i), ranking_scores[i]); 
+      }
       clear_field();
       next_state = GAME_STATE_TITLE;
     }
