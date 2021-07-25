@@ -23,7 +23,7 @@ typedef byte block_state;
 
 // ミノの情報
 typedef struct {
-  int x, y;           // 位置
+  char x, y;          // 位置
   block_state state;  // 状態
 } mino_info;
 

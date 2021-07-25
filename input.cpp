@@ -14,12 +14,12 @@
 #define CONTINUE_PRESS_FRAME_COUNT  250
 
 
-static unsigned long input;               // ボタンの押下状態（ボタンが押されているなら対応するビットが立つ）
-static unsigned long prev_input;          // 1つ前の押下状態
-static unsigned long press_change_input;  // 押下状態が変化したときの押下状態
-static unsigned long press_frame_count;   // ボタン押しているフレーム数
-static unsigned long rising_edge_input;   // ボタンが立ち上がりエッジになっているなら対応するビットが立つ
-static unsigned long falling_edge_input;  // 立ち下がりエッジ
+static byte input;               // ボタンの押下状態（ボタンが押されているなら対応するビットが立つ）
+static byte prev_input;          // 1つ前の押下状態
+static byte press_change_input;  // 押下状態が変化したときの押下状態
+static byte press_frame_count;   // ボタン押しているフレーム数
+static byte rising_edge_input;   // ボタンが立ち上がりエッジになっているなら対応するビットが立つ
+static byte falling_edge_input;  // 立ち下がりエッジ
 
 
 // 入力ポート初期化
@@ -50,7 +50,7 @@ void update_button_input(void) {
 
 
 // ボタンの押下状態を返す
-unsigned int read_button_input(void) {
+byte read_button_input(void) {
   return 
     ((digitalRead(UP_BUTTON_PIN) == LOW) * BUTTON_UP)
     | ((digitalRead(DOWN_BUTTON_PIN) == LOW) * BUTTON_DOWN)
@@ -61,17 +61,17 @@ unsigned int read_button_input(void) {
 
 
 // ボタンを押しているかどうか
-bool button_press(unsigned int button_code) {
+bool button_press(byte button_code) {
   return input & button_code;
 }
 
 // ボタンを押した瞬間かどうか
-bool button_down(unsigned int button_code) {
+bool button_down(byte button_code) {
   return rising_edge_input & button_code;
 }
 
 // ボタンを離した瞬間かどうか
-bool button_up(unsigned int button_code) {
+bool button_up(byte button_code) {
   return falling_edge_input & button_code;
 }
 

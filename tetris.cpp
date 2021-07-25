@@ -26,7 +26,7 @@ static block_state field[FIELD_HEIGHT][FIELD_WIDTH];  // テトリスのフィ�
 static mino_info player;                              // プレイヤーが動かすミノの状態
 static byte player_mino[MINO_SIZE][MINO_SIZE];        // ミノの形状
 static mino_info next;                                // 次のミノの状態
-static int next_mino_id;                              // 次のミノの種類
+static char next_mino_id;                             // 次のミノの種類
 
 
 /*
@@ -34,7 +34,7 @@ static int next_mino_id;                              // 次のミノの種類
  */
 static void init_tetris(void);                                                                  // テトリスゲーム初期化
 static void init_field(block_state field[FIELD_HEIGHT][FIELD_WIDTH]);                           // フィールドの初期化
-static void copy_next_mino(byte dst[MINO_SIZE][MINO_SIZE], int mino_id);                        // 番号mino_idで指定したミノの形状を配列にコピー
+static void copy_next_mino(byte dst[MINO_SIZE][MINO_SIZE], char mino_id);                       // 番号mino_idで指定したミノの形状を配列にコピー
 static void copy_mino(byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE]);            // ミノの配列から配列にコピー
 static void rotate_mino(                                                                        // ミノを回転
   byte dst[MINO_SIZE][MINO_SIZE], const byte (*src)[MINO_SIZE], int clockwise
@@ -192,7 +192,7 @@ static void init_field(block_state field[FIELD_HEIGHT][FIELD_WIDTH]) {
 
 
 // 番号mino_idで指定したミノの形状を配列にコピー
-static void copy_next_mino(byte dst[MINO_SIZE][MINO_SIZE], int mino_id) {
+static void copy_next_mino(byte dst[MINO_SIZE][MINO_SIZE], char mino_id) {
   for (int i = 0; i < MINO_SIZE; i++) {
     for (int j = 0; j < MINO_SIZE; j++) {
       dst[i][j] = pgm_read_byte(&(mino_shapes[mino_id][i][j]));
