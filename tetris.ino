@@ -17,6 +17,7 @@ static const unsigned int fps = 1000; // 1秒間のフレーム数
 static unsigned int ranking_scores[RANKING_COUNT];  // ランキング
 
 #define RANKING_ADDRESS(rank) ((rank) * sizeof(*ranking_scores))              /* ランキングを保存するアドレス */
+#define RANDOM_SEED_ADDRESS   ((RANKING_ADDRESS(0)) + sizeof(ranking_scores)) /* 乱数シードを保存するアドレス */
 
 // ゲーム状態
 #define GAME_STATE_TITLE    0
@@ -27,8 +28,6 @@ static byte state = GAME_STATE_TITLE;
 
 
 void setup() {
-  randomSeed(digitalRead(13));
-  
   // ハードウェア初期化
   Serial.begin(9600);
   input_init();
@@ -98,10 +97,21 @@ void loop() {
   }
 
   if (state != next_state) {
+    // 各ゲーム状態の開始時処理
+    switch (next_state) {
+    case GAME_STATE_PLAY:
+      // 乱数シード設定
+      unsigned long seed;
+      EEPROM.get(RANDOM_SEED_ADDRESS, seed);
+      seed += millis();
+      randomSeed(seed);
+      EEPROM.write(RANDOM_SEED_ADDRESS, seed);
+    }
     frame_count = 0;
   } else {
     frame_count++;
   }
+  
   state = next_state;
 
   delay((unsigned long)(1000 / fps));
