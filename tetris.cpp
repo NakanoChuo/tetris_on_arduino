@@ -53,6 +53,7 @@ static void fix_mino(                                                           
   const byte (*mino)[MINO_SIZE], mino_info *mino_info
 );
 static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y, int high_y);  // ブロックの消去処理
+static unsigned int calculate_score(int delete_row_count);                                      // スコア計算
 
 
 
@@ -138,14 +139,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
           fix_mino(field, player_mino, &player);                      // ミノをブロックに固定する
           
           int delete_row_count = delete_blocks(field, player.y, player.y + MINO_SIZE);  // 消去した列数
-          if (delete_row_count > 0) {
-            // スコア計算
-            int d_score = 1;  // スコア増分
-            for (int i = 0; i < delete_row_count - 1; i++) {
-              d_score *= 10;  // 一度に消去した列数に応じて、より多いスコア
-            }
-            score += d_score;
-          }
+          score += calculate_score(delete_row_count);
         } else {                                                      // ミノがフィールド外なら
           is_gameover = true; // ゲームオーバー
         }
@@ -154,6 +148,7 @@ bool tetris(unsigned long frame_count, unsigned int fps) {
     }
   }
 
+  // 次のミノの移動
   if ((next.state != BLOCK_NONE) && !is_gameover) {
     if (next_mino_dy != 0) {
       if (next.y < STANDBY_Y) {
@@ -353,4 +348,16 @@ static int delete_blocks(block_state field[FIELD_HEIGHT][FIELD_WIDTH], int low_y
   }
 
   return delete_row_count;
+}
+
+
+// スコア計算
+static unsigned int calculate_score(int delete_row_count) {
+  static int prev_score = 0;
+  int score = delete_row_count * delete_row_count * 10;
+  if (score > 0) {
+    score += prev_score;
+  }
+  prev_score = score;
+  return score;
 }

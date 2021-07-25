@@ -39,6 +39,7 @@ void loop() {
   update_button_input();  // ボタンの入力状態取得
   byte next_state = state;
 
+  // 各ゲーム状態の終了時処理
   switch (state) {
   case GAME_STATE_TITLE:
     if (title_screen(frame_count, fps)) {

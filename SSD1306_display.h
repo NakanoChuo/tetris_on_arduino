@@ -9,6 +9,7 @@
 extern Adafruit_SSD1306 display;
 bool SSD1306_init(void);  // 液晶ディスプレイ初期化
 
+// 数字ビットマップの大きさ
 #define DIGIT_BMP_HEIGHT  5
 #define DIGIT_BMP_WIDTH   6
 

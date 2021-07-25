@@ -2,6 +2,7 @@
 #include <Arduino.h>
 
 
+// ミノの形状
 const byte mino_shapes[MINO_TYPE_COUNT][MINO_SIZE][MINO_SIZE] PROGMEM = {
   {
     {0, 0, 0, 0},

@@ -15,7 +15,8 @@ bool finish_screen(unsigned long frame_count, unsigned int fps) {
   if (frame_count == 0) {
     i = 0;
   }
-  
+
+  // 画面消去アニメーション
   if (frame_count % (int)(fps * ANIMATION_PERIOD) == 0) {
     int x, y;
     for (int j = i - DELETE_BLOCK_SPEED; j <= i; j++) {

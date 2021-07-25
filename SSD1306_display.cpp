@@ -8,6 +8,7 @@
 #define SCREEN_ADDRESS  0x3C  // I2C address
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+// 数字のビットマップ
 static const byte digit_bmp[][DIGIT_BMP_HEIGHT] PROGMEM = {
   {
     B01111000,

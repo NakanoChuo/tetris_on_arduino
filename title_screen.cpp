@@ -13,7 +13,9 @@ bool title_screen(unsigned long frame_count, unsigned int fps) {
     draw_title();
     display.display();
   }
-  if (button_press(BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_CENTER)) {
+
+  // 何かボタンが押されたら次の画面に遷移
+  if (button_up(BUTTON_UP | BUTTON_DOWN | BUTTON_LEFT | BUTTON_RIGHT | BUTTON_CENTER)) {
     return true;
   }
   return false;
