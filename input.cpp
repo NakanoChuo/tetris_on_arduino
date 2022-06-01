@@ -3,9 +3,9 @@
 
 
 // ボタンのピン番号
-#define UP_BUTTON_PIN     2
-#define DOWN_BUTTON_PIN   3
-#define LEFT_BUTTON_PIN   4
+#define UP_BUTTON_PIN     4
+#define DOWN_BUTTON_PIN   2
+#define LEFT_BUTTON_PIN   3
 #define RIGHT_BUTTON_PIN  5
 #define CENTER_BUTTON_PIN 6
 
