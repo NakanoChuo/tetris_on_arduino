@@ -7,12 +7,14 @@
 class MusicPlayer {
 private:
   // 1音
-  typedef struct note {
-    unsigned value  : 3;  // 音価
-    unsigned dot    : 1;  // 付点
-    unsigned slur   : 1;  // スラー
-    signed octave   : 3;  // オクターブ
-    unsigned pitch  : 8;  // 音の高さ
+  typedef struct {
+    unsigned value    : 3;  // 音価　　　　　0:倍音符、1:全音符、2:2分音符、3:4分音符、...、7:64分音符
+    unsigned padding1 : 1;
+    unsigned dot      : 2;  // 付点　　　　　0:付点なし(1倍)、1:付点(1.5倍)、2:2付点(1.75倍)、3:3付点(1.875倍)
+    unsigned slur     : 1;  // スラー　　　　0:なし、1:あり
+    unsigned padding2 : 1;
+    unsigned pitch    : 4;  // 音階　　　　　0:休符、1:ド、2:ド#、3:レ、...、12:シ、13~:終了コード
+    signed octave     : 4;  // オクターブ　　-8~-1:低オクターブ、0:オクターブ変動なし、1~7:高オクターブ
   } note;
 
 private:

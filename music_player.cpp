@@ -100,40 +100,50 @@ void MusicPlayer::update_sound(void) {
 bool MusicPlayer::read_note(unsigned int& ret_note_duration, unsigned int& ret_frequency, bool& is_slur, bool& is_rest) {
   word note = pgm_read_word(&(this->notes[this->note_index]));
   MusicPlayer::note *n_ptr = (MusicPlayer::note *)&note;
-  unsigned char pitch = n_ptr->pitch; // 音の高さ
-  signed char octave = n_ptr->octave; // オクターブ
-  unsigned char slur = n_ptr->slur;   // スラーかどうか
-  unsigned char dot = n_ptr->dot;     // 付点かどうか
-  unsigned char value = n_ptr->value; // 音価
 
-  // 音の高さ、オクターブから音符or休符、音符なら周波数を決定
-  if (pitch < PITCH_COUNT) {
-    ret_frequency = pgm_read_word(&frequency_list[pitch]);
-    ret_frequency = (unsigned int)(ret_frequency * pow(2, octave));
-    is_rest = false;
-  } else if (pitch == 0xFF) { // 終了コード
+  if (PITCH_COUNT < n_ptr->pitch) { // 異常な音階は終了コードを表す
     return false;
-  } else {
-    is_rest = true;
+  }
+  
+  // 休符かどうか
+  is_rest = (n_ptr->pitch == 0);
+  
+  unsigned char pitch = n_ptr->pitch - 1; // 音階
+  signed char octave = n_ptr->octave;     // オクターブ
+  unsigned char slur = n_ptr->slur;       // スラーかどうか
+  unsigned char dot = n_ptr->dot;         // 付点の数
+  unsigned char value = n_ptr->value;     // 音価
+
+  // 音階、オクターブから周波数を決定
+  if (not is_rest) {
+    ret_frequency = pgm_read_word(&frequency_list[pitch]);
+    if (octave >= 0) {
+      ret_frequency <<= octave;
+    } else {
+      ret_frequency >>= -octave;
+    }
   }
 
   // スラーかどうか
   is_slur = (slur > 0);
 
-  // 付点と音価から音を鳴らす時間を決定
+  // 音価と付点から音を鳴らす時間を決定
   float note_duration = 1000.0f * 60.0f / this->bpm;
   switch (value) {
-  case 0: note_duration *= 8;  break;  // 倍音符
-  case 1: note_duration *= 4;  break;  // 全音符
-  case 2: note_duration *= 2;  break;  // 2分音符
-  case 3: note_duration *= 1;  break;  // 4分音符
-  case 4: note_duration /= 2;  break;  // 8分音符
-  case 5: note_duration /= 4;  break;  // 16分音符
-  case 6: note_duration /= 8;  break;  // 32分音符
-  case 7: note_duration /= 16; break;  // 64分音符
+  case 0: note_duration *= 8;       break;  // 倍音符
+  case 1: note_duration *= 4;       break;  // 全音符
+  case 2: note_duration *= 2;       break;  // 2分音符
+  case 3: /* note_duration *= 1; */ break;  // 4分音符
+  case 4: note_duration /= 2;       break;  // 8分音符
+  case 5: note_duration /= 4;       break;  // 16分音符
+  case 6: note_duration /= 8;       break;  // 32分音符
+  case 7: note_duration /= 16;      break;  // 64分音符
   }
-  if (dot) {
-    note_duration *= 1.5f;
+  switch (dot) {
+    case 0: /* note_duratioin *= 1; */  break;  // ×1
+    case 1: note_duration *= 1.5f;      break;  // ×(1 + 1/2)
+    case 2: note_duration *= 1.75f;     break;  // ×(1 + 1/2 + 1/4)
+    case 3: note_duration *= 1.875f;    break;  // ×(1 + 1/2 + 1/4 + 1/8)
   }
   ret_note_duration = (unsigned int)note_duration;
 
