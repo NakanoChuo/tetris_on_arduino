@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 #define BUZZER_PIN  7
-#define SOUND_RATE  0.9f  /* 1拍子あたりの音を鳴らす割合（複数の拍子も1音に繋がって聞こえる）*/
+#define SOUND_RATE  0.99f  /* 1拍子あたりの音を鳴らす割合（1だと複数の拍子も1音に繋がって聞こえる）*/
 
 // 1音データ
 typedef struct {
