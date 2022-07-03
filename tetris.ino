@@ -61,15 +61,40 @@ void setup() {
   }
 
   // 音楽設定
-   music = MusicPlayer();
-   music.set_notes(bpm, notes);
-   music.play(true);
+  music = MusicPlayer();
+  music.set_notes(bpm, notes);
+  music.play(true);
+
+  // レジスタ設定
+  set_register();
+}
+
+// タイマー割り込み用レジスタ設定
+void set_register() {
+  // CTCモード
+  TCCR1B |= (1 << WGM12);
+  TCCR1A &= ~(1 << WGM11);
+  TCCR1A &= ~(1 << WGM10);
+  
+  // 64分周（16MHz/64）＆カウンタ値=24に設定
+  // 1/(16MHz/64)×25=100μsに1回割り込み発生
+  TCCR1B &= ~(1 << CS12);
+  TCCR1B |= (1 << CS11);
+  TCCR1B |= (1 << CS10);
+  OCR1A = 24;
+  
+  // タイマー割り込みを許可
+  TIMSK1 |= (1 << OCIE1A);
+}
+
+// タイマー割り込み時の処理
+ISR(TIMER1_COMPA_vect) {
+  music.update_sound(); // 音を鳴らす
 }
 
 
 void loop() {
   update_button_input();  // ボタンの入力状態取得  
-  music.update_sound();   // 音を鳴らす
 
   static unsigned int score;
   byte next_state = state;
